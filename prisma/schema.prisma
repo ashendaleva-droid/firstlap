@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  PILOT
+  COACH
+  PARENT
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  pilot       Pilot?
+  coach       Coach?
+  parentLinks ParentPilot[]
+}
+
+model Pilot {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id])
+  number           Int      @unique
+  currentCourse    String   @default("young_pilot")
+  lessonsCompleted Int      @default(0)
+  xp               Int      @default(0)
+
+  sessions     TrainingSession[]
+  achievements PilotAchievement[]
+  parentLinks  ParentPilot[]
+}
+
+model Coach {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model ParentPilot {
+  id           String @id @default(cuid())
+  parentUserId String
+  parent       User   @relation(fields: [parentUserId], references: [id])
+  pilotId      String
+  pilot        Pilot  @relation(fields: [pilotId], references: [id])
+
+  @@unique([parentUserId, pilotId])
+}
+
+model TrainingSession {
+  id          String   @id @default(cuid())
+  pilotId     String
+  pilot       Pilot    @relation(fields: [pilotId], references: [id])
+  lessonIndex Int
+  date        DateTime @default(now())
+  comment     String?
+  task        String?
+
+  laps LapTime[]
+}
+
+model LapTime {
+  id               String          @id @default(cuid())
+  sessionId        String
+  session          TrainingSession @relation(fields: [sessionId], references: [id])
+  timeMs           Int
+  isPersonalRecord Boolean         @default(false)
+}
+
+model Achievement {
+  id          String @id @default(cuid())
+  code        String @unique
+  title       String
+  description String
+  icon        String
+
+  pilotAchievements PilotAchievement[]
+}
+
+model PilotAchievement {
+  id            String      @id @default(cuid())
+  pilotId       String
+  pilot         Pilot       @relation(fields: [pilotId], references: [id])
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  earnedAt      DateTime    @default(now())
+
+  @@unique([pilotId, achievementId])
+}
